@@ -1,10 +1,7 @@
-import h2d.Tile;
-import h3d.mat.Texture;
-import h3d.scene.Graphics;
-import hxd.Key;
+import h3d.scene.Object;
+import h3d.prim.ModelCache;
 import h3d.scene.Mesh;
 import h3d.prim.Cube;
-import h3d.scene.World.WorldModel;
 import hxd.Key in K;
 
 class WorldMesh extends h3d.scene.World {
@@ -27,6 +24,9 @@ class Main extends hxd.App {
 	var tf : h2d.Text;
 
     var s:Mesh;
+    var s2:Object;
+
+    var fui : h2d.Flow;
 
 	override function init() {
 
@@ -34,10 +34,15 @@ class Main extends hxd.App {
 		var t = world.loadModel(hxd.Res.tree);
 		var r = world.loadModel(hxd.Res.rock);
 
-        final prim = new Cube(4, 5, 6);
+        final prim = new Cube(4, 5, 6, true);
         prim.addNormals();
         prim.addUVs();
         s = new Mesh(prim, null, s3d);
+
+        final cache = new ModelCache();
+        s2 = cache.loadModel(hxd.Res.rock);
+        s2.setScale(5);
+        s3d.addChild(s2);
 
 		for( i in 0...1000 )
 			world.add(Std.random(2) == 0 ? t : r, Math.random() * 128, Math.random() * 128, 0, 1.2 + hxd.Math.srand(0.4), hxd.Math.srand(Math.PI));
@@ -75,13 +80,38 @@ class Main extends hxd.App {
 		new h3d.scene.CameraController(s3d).loadFromCamera();
 
 		tf = new h2d.Text(hxd.res.DefaultFont.get(), s2d);
+
+		fui = new h2d.Flow(s2d);
+		fui.layout = Vertical;
+		fui.verticalSpacing = 5;
+		fui.padding = 10;
+
+        // requires `dom` be commented out in h2d.Flow
+        addSlider("ax", function() return ax, function(x) { ax = x; }, 0, 6);
+        addSlider("ay", function() return ay, function(x) { ay = x; }, 0, 6);
+        addSlider("az", function() return az, function(x) { az = x; }, 0, 1000);
+        addSlider("angle", function() return angle, function(x) { angle = x; }, 0, Math.PI * 2);
 	}
+
+    var ax:Float = 0.0;
+    var ay:Float = 0.0;
+    var az:Float = 0.0;
+    var angle:Float = 0.0;
+
+    var q:Float = 0.0;
+    // var e:Float = 0.0;
 
 	override function update(dt:Float) {
         if (K.isDown('A'.code)) s.x -= 1;
         if (K.isDown('D'.code)) s.x += 1;
         if (K.isDown('W'.code)) s.y -= 1;
         if (K.isDown('S'.code)) s.y += 1;
+        if (K.isDown('Q'.code)) q += 0.1;
+        if (K.isDown('E'.code)) q -= 0.1;
+
+        s.setRotation(0, 0, q);
+
+        // trace(ax, ay, az, angle, e, q);
 
 		tf.text = ""+engine.drawCalls;
 	}
@@ -89,5 +119,39 @@ class Main extends hxd.App {
 	static function main() {
 		hxd.Res.initEmbed();
 		new Main();
+	}
+
+	function addSlider( label : String, get : Void -> Float, set : Float -> Void, min : Float = 0., max : Float = 1. ) {
+		var f = new h2d.Flow(fui);
+
+		f.horizontalSpacing = 5;
+
+		var tf = new h2d.Text(getFont(), f);
+		tf.text = label;
+		tf.maxWidth = 70;
+		tf.textAlign = Right;
+
+		var sli = new h2d.Slider(100, 10, f);
+		sli.minValue = min;
+		sli.maxValue = max;
+		sli.value = get();
+
+		var tf = new h2d.TextInput(getFont(), f);
+		tf.text = "" + hxd.Math.fmt(sli.value);
+		sli.onChange = function() {
+			set(sli.value);
+			tf.text = "" + hxd.Math.fmt(sli.value);
+			f.needReflow = true;
+		};
+		tf.onChange = function() {
+			var v = Std.parseFloat(tf.text);
+			if( Math.isNaN(v) ) return;
+			sli.value = v;
+			set(v);
+		};
+		return sli;
+	}
+	function getFont() {
+		return hxd.res.DefaultFont.get();
 	}
 }
