@@ -1,3 +1,7 @@
+import h3d.col.Point;
+import h3d.col.Bounds;
+import h3d.mat.Material;
+import h3d.mat.Texture;
 import h3d.scene.Object;
 import h3d.prim.ModelCache;
 import h3d.scene.Mesh;
@@ -40,6 +44,9 @@ class Main extends hxd.App {
 
     var fui : h2d.Flow;
 
+    var mat:Material;
+    // var mat2:Material;
+
     override function init() {
 
         world = new WorldMesh(16, s3d);
@@ -48,26 +55,36 @@ class Main extends hxd.App {
 
         // final prim = new Cube(4, 5, 1, true);
         // creates a new unit cube
-        var prim = new h3d.prim.Cube(10, 10, 1);
+        var prim = new h3d.prim.Cube(10, 10, 0);
         // translate it so its center will be at the center of the cube
         prim.translate( -0.5, -0.5, 0.0);
 
         // unindex the faces to create hard edges normals
         prim.unindex();
 
-        // add face normals
+        // add face normalssd
         prim.addNormals();
 
         // add texture coordinates
         prim.addUVs();
 
-        // accesss the logo resource and convert it to a texture
-        var tex = hxd.Res.flowers.toTexture();
+        // accesss resource and convert it to a texture
+        final tex = hxd.Res.smiley.toTexture();
+        final tex2 = hxd.Res.flowers.toTexture();
+
         // create a material with this texture
-        var mat = h3d.mat.Material.create(tex);
+        mat = h3d.mat.Material.create(tex);
+        mat.receiveShadows = false;
 
         // let alpha through billboarded sprites
         mat.textureShader.killAlpha = true;
+        // make clean lines instead of bilinear filtering?
+        mat.texture.filter = Nearest;
+
+        // mat2 = h3d.mat.Material.create(tex2);
+        // mat2.receiveShadows = false;
+        // mat2.textureShader.killAlpha = true;
+        // mat2.texture.filter = Nearest;
 
         s = new Mesh(prim, mat, s3d);
 
@@ -85,8 +102,7 @@ class Main extends hxd.App {
 
         world.done();
 
-        //
-        // var light = new h3d.scene.fwd.DirLight(new h3d.Vector( 0.3, -0.4, -0.9), s3d);
+        var light = new h3d.scene.fwd.DirLight(new h3d.Vector( 0.3, -0.4, -0.9), s3d);
         // trace(light.enableSpecular = false);
 
         // fully lit with ambient light of white?
@@ -96,6 +112,12 @@ class Main extends hxd.App {
         s3d.camera.target.set(0, 0, 0);
         s3d.camera.pos.set(120, 120, 40);
 
+        // setting ortho bounds (needs a bunch more stuff for it to look right)
+        // final bounds = new Bounds();
+        // bounds.setMin(new Point(-100, -100, -100));
+        // bounds.setMax(new Point(100, 100, 100));
+        // s3d.camera.orthoBounds = bounds;
+
         shadow = s3d.renderer.getPass(h3d.pass.DefaultShadowMap);
         shadow.size = 2048;
         shadow.power = 200;
@@ -103,7 +125,7 @@ class Main extends hxd.App {
         shadow.bias *= 0.1;
         shadow.color.set(0.7, 0.7, 0.7);
 
-        //
+        // gpu particles
         var parts = new h3d.parts.GpuParticles(world);
         var g = parts.addGroup();
         g.size = 0.2;
@@ -125,10 +147,14 @@ class Main extends hxd.App {
         fui.padding = 10;
 
         // requires `dom` be commented out in h2d.Flow
-        addSlider("ax", function() return ax, function(x) { ax = x; }, 0, 6);
-        addSlider("ay", function() return ay, function(x) { ay = x; }, 0, 6);
-        addSlider("az", function() return az, function(x) { az = x; }, 0, 1000);
-        addSlider("angle", function() return angle, function(x) { angle = x; }, 0, Math.PI * 2);
+        // addSlider("ax", function() return ax, function(x) { ax = x; }, 0, 6);
+        // addSlider("ay", function() return ay, function(x) { ay = x; }, 0, 6);
+        // addSlider("az", function() return az, function(x) { az = x; }, 0, 1000);
+        // addSlider("angle", function() return angle, function(x) { angle = x; }, 0, Math.PI * 2);
+        addCheck("light", function() return light.visible, function (x) { light.visible = x; });
+        // addCheck("tex", function() return s.material == mat, function (x) { 
+        //     s.material = x ? mat : mat2;
+        // });
     }
 
     var ax:Float = 0.0;
@@ -189,6 +215,37 @@ class Main extends hxd.App {
         };
         return sli;
     }
+	function addCheck( label : String, get : Void -> Bool, set : Bool -> Void ) {
+		var f = new h2d.Flow(fui);
+
+		f.horizontalSpacing = 5;
+
+		var tf = new h2d.Text(getFont(), f);
+		tf.text = label;
+		tf.maxWidth = 70;
+		tf.textAlign = Right;
+
+		var size = 10;
+		var b = new h2d.Graphics(f);
+		function redraw() {
+			b.clear();
+			b.beginFill(0x808080);
+			b.drawRect(0, 0, size, size);
+			b.beginFill(0);
+			b.drawRect(1, 1, size-2, size-2);
+			if( get() ) {
+				b.beginFill(0xC0C0C0);
+				b.drawRect(2, 2, size-4, size-4);
+			}
+		}
+		var i = new h2d.Interactive(size, size, b);
+		i.onClick = function(_) {
+			set(!get());
+			redraw();
+		};
+		redraw();
+		return i;
+	}
     function getFont() {
         return hxd.res.DefaultFont.get();
     }
