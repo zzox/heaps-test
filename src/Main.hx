@@ -1,3 +1,4 @@
+import h2d.Bitmap;
 import h3d.col.Point;
 import h3d.col.Bounds;
 import h3d.mat.Material;
@@ -41,6 +42,8 @@ class Main extends hxd.App {
 
     var s:Mesh;
     var s2:Object;
+
+    var healthBar:h2d.Object;
 
     var fui : h2d.Flow;
 
@@ -139,6 +142,13 @@ class Main extends hxd.App {
         s3d.camera.zFar = 100;
         new h3d.scene.CameraController(s3d).loadFromCamera();
 
+        healthBar = new h2d.Object(s2d);
+        healthBar.scale(3);
+        final tile = hxd.Res.health_bar.toTile();
+        tile.center();
+        final bmp = new Bitmap(tile, s2d);
+        healthBar.addChild(bmp);
+
         tf = new h2d.Text(hxd.res.DefaultFont.get(), s2d);
 
         fui = new h2d.Flow(s2d);
@@ -174,6 +184,9 @@ class Main extends hxd.App {
         if (K.isDown('E'.code)) q -= 0.1;
 
         s.setRotation(0, 0, q);
+
+        final pos = s3d.camera.project(s.x, s.y - 5, s.z + 15, s2d.width, s2d.height);
+        healthBar.setPosition(pos.x, pos.y);
 
         // trace(ax, ay, az, angle, e, q);
 
