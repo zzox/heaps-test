@@ -1,3 +1,5 @@
+import h3d.mat.Data.Operation;
+import h3d.shader.AnimatedTexture;
 import h2d.Bitmap;
 import h3d.col.Point;
 import h3d.col.Bounds;
@@ -52,13 +54,9 @@ class Main extends hxd.App {
 
     override function init() {
 
-        world = new WorldMesh(16, s3d);
-        var t = world.loadModel(hxd.Res.tree);
-        var r = world.loadModel(hxd.Res.rock);
-
         // final prim = new Cube(4, 5, 1, true);
         // creates a new unit cube
-        var prim = new h3d.prim.Cube(10, 10, 0);
+        var prim = new h3d.prim.Cube(10, 10, 10);
         // translate it so its center will be at the center of the cube
         prim.translate( -0.5, -0.5, 0.0);
 
@@ -75,28 +73,55 @@ class Main extends hxd.App {
         final tex = hxd.Res.smiley.toTexture();
         final tex2 = hxd.Res.flowers.toTexture();
 
-        // create a material with this texture
-        mat = h3d.mat.Material.create(tex);
-        mat.receiveShadows = false;
+        {
+            // // create a material with this texture
+            // mat = h3d.mat.Material.create(tex);
+            // mat.receiveShadows = false;
 
-        // let alpha through billboarded sprites
-        mat.textureShader.killAlpha = true;
-        // make clean lines instead of bilinear filtering?
-        mat.texture.filter = Nearest;
+            // // let alpha through billboarded sprites
+            // mat.textureShader.killAlpha = true;
+            // // make clean lines instead of bilinear filtering?
+            // mat.texture.filter = Nearest;
+            // s = new Mesh(prim, mat, s3d);
+            // s.material.mainPass.addShader(new BillboardShader());
+        }
 
         // mat2 = h3d.mat.Material.create(tex2);
         // mat2.receiveShadows = false;
         // mat2.textureShader.killAlpha = true;
         // mat2.texture.filter = Nearest;
 
-        s = new Mesh(prim, mat, s3d);
+        {
+            // use empty material to create mesh then use animated texture shader
+            var emptyMat = Material.create();
+            emptyMat.receiveShadows = false;
 
+            s = new Mesh(prim, emptyMat, s3d);
+            s.material.mainPass.addShader(new BillboardShader());
+
+            final texShader = new ATShader(tex, 2, 2);
+            texShader.blendBetweenFrames = false;
+            texShader.texture.filter = Nearest;
+            // texShader.killAlpha = true;
+            s.material.mainPass.addShader(texShader);
+            // setting blend mode here fixes the missing killAlpha,
+            // but still casts a shadow without the alpha
+            s.material.mainPass.setBlendMode(Alpha);
+            trace(s.material.getPass('shadow').blendOp = Operation.Sub);
+            // errors here
+            // s.material.textureShader.killAlpha = true;
+        }
+
+        // big rock model straight to world
         final cache = new ModelCache();
         s2 = cache.loadModel(hxd.Res.rock);
         s2.setScale(5);
         s3d.addChild(s2);
 
-        s.material.mainPass.addShader(new BillboardShader());
+
+        world = new WorldMesh(16, s3d);
+        var t = world.loadModel(hxd.Res.tree);
+        var r = world.loadModel(hxd.Res.rock);
 
         for( i in 0...1000 )
             world.add(Std.random(2) == 0 ? t : r, Math.random() * 128, Math.random() * 128, 0, 1.2 + hxd.Math.srand(0.4), hxd.Math.srand(Math.PI));
@@ -145,7 +170,7 @@ class Main extends hxd.App {
         healthBar = new h2d.Object(s2d);
         healthBar.scale(3);
         final tile = hxd.Res.health_bar.toTile();
-        tile.center();
+        // tile.center();
         final bmp = new Bitmap(tile, s2d);
         healthBar.addChild(bmp);
 
@@ -185,7 +210,7 @@ class Main extends hxd.App {
 
         s.setRotation(0, 0, q);
 
-        final pos = s3d.camera.project(s.x, s.y - 5, s.z + 15, s2d.width, s2d.height);
+        final pos = s3d.camera.project(s.x, s.y, s.z + 15, s2d.width, s2d.height);
         healthBar.setPosition(pos.x, pos.y);
 
         // trace(ax, ay, az, angle, e, q);
