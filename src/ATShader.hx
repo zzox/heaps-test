@@ -52,9 +52,6 @@ class ATShader extends hxsl.Shader {
 
 		function fragment() {
 			pixelColor *= textureColor;
-            if (textureColor.a == 0) {
-                pixelColor = vec4(0, 0, 0, 0);
-            }
 		}
 
 	};

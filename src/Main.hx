@@ -24,7 +24,7 @@ class WorldMesh extends h3d.scene.World {
     }
 }
 
-class BillboardShader extends hxsl.Shader {
+class OldBillboardShader extends hxsl.Shader {
     static var SRC = {
         @:import h3d.shader.BaseMesh;
         function vertex() {
@@ -32,6 +32,52 @@ class BillboardShader extends hxsl.Shader {
             var center = vec3(0,0,0) * global.modelView.mat3x4();
             var pos = center + camera.view[0].xyz * relativePosition.x * scale + vec3(0,0,1) * relativePosition.y * scale; // using y-vertex-component data for billboard's z-extent
             projectedPosition = vec4(pos, 1) * camera.viewProj;
+        }
+    }
+}
+
+class BillboardShader extends hxsl.Shader {
+    static var SRC = {
+        @:import h3d.shader.BaseMesh;
+		// // Sprite size in world coords
+		// @param var spriteSize:Vec2;
+		// Upper and lower uv coords
+		@param var uvs:Vec4;
+		// // xy = origin, zw = tile offset
+		// @param var offset:Vec4;
+		// @param var tileSize:Vec2;
+
+		@input var props:{
+			var uv:Vec2;
+		};
+		// @input var input:{
+		// 	var position:Vec3;
+		// 	var normal:Vec3;
+		// 	var uv:Vec2;
+		// };
+		// var relativePosition:Vec3;
+		// var transformedPosition:Vec3;
+		var calculatedUV:Vec2;
+        // var texture:Sampler2D;
+		// var pixelColor:Vec4;
+
+        // @:borrow(h3d.shader.Base2d) var texture: Sampler2D;
+
+        // function __init__ () {
+        //     relativePosition.xz *= vec2(0.5, 0.5);
+        //     relativePosition.xz += vec2(0.5, 0.5);
+        // }
+
+        function vertex() {
+            var scale = 1;
+            var center = vec3(0,0,0) * global.modelView.mat3x4();
+            var pos = center + camera.view[0].xyz * relativePosition.x * scale + vec3(0,0,1) * relativePosition.y * scale; // using y-vertex-component data for billboard's z-extent
+            projectedPosition = vec4(pos, 1) * camera.viewProj;
+
+			var uv1 = uvs.xy;
+			var uv2 = uvs.zw;
+			var d = uv2 - uv1;
+			calculatedUV = vec2(props.uv * d + uv1);
         }
     }
 }
@@ -51,6 +97,7 @@ class Main extends hxd.App {
 
     var mat:Material;
     // var mat2:Material;
+    var shader:BillboardShader;
 
     override function init() {
 
@@ -58,7 +105,7 @@ class Main extends hxd.App {
         // creates a new unit cube
         var prim = new h3d.prim.Cube(10, 10, 10);
         // translate it so its center will be at the center of the cube
-        prim.translate( -0.5, -0.5, 0.0);
+        prim.translate( -0.5, -0.5, -0.0);
 
         // unindex the faces to create hard edges normals
         prim.unindex();
@@ -92,24 +139,37 @@ class Main extends hxd.App {
         // mat2.texture.filter = Nearest;
 
         {
-            // use empty material to create mesh then use animated texture shader
-            var emptyMat = Material.create();
-            emptyMat.receiveShadows = false;
+            // // use empty material to create mesh then use animated texture shader
+            // var emptyMat = Material.create(tex);
+            // emptyMat.receiveShadows = false;
 
-            s = new Mesh(prim, emptyMat, s3d);
-            s.material.mainPass.addShader(new BillboardShader());
+            // s = new Mesh(prim, emptyMat, s3d);
+            // s.material.mainPass.addShader(new BillboardShader());
 
-            final texShader = new ATShader(tex, 2, 2);
-            texShader.blendBetweenFrames = false;
-            texShader.texture.filter = Nearest;
-            // texShader.killAlpha = true;
-            s.material.mainPass.addShader(texShader);
-            // setting blend mode here fixes the missing killAlpha,
-            // but still casts a shadow without the alpha
-            s.material.mainPass.setBlendMode(Alpha);
-            trace(s.material.getPass('shadow').blendOp = Operation.Sub);
-            // errors here
+            // final texShader = new ATShader(tex, 1, 1);
+            // texShader.blendBetweenFrames = false;
+            // texShader.texture.filter = Nearest;
+            // s.material.mainPass.addShader(texShader);
+
+            // // setting blend mode here fixes the missing killAlpha,
+            // // but still casts a shadow without the alpha
+            // // s.material.mainPass.setBlendMode(Alpha);
+            // // trace(s.material.getPass('shadow').blendOp = Operation.Sub);
+
+            // // errors here, unless we add a texture to the material (but that then messes with the color)
             // s.material.textureShader.killAlpha = true;
+        }
+
+        {
+            var mat = Material.create(tex);
+            mat.receiveShadows = false;
+            mat.textureShader.killAlpha = true;
+            mat.texture.filter = Nearest;
+
+            s = new Mesh(prim, mat, s3d);
+            s.material.mainPass.addShader(new BillboardShader());
+            shader = s.material.mainPass.getShader(BillboardShader);
+            shader.uvs.set(0.0, 0.0, 0.5, 0.5);
         }
 
         // big rock model straight to world
@@ -212,6 +272,17 @@ class Main extends hxd.App {
 
         final pos = s3d.camera.project(s.x, s.y, s.z + 15, s2d.width, s2d.height);
         healthBar.setPosition(pos.x, pos.y);
+
+        if (Math.random() < 0.5) {
+            shader.uvs.set(0.0, 0.0, 0.5, 0.5);
+        } else {
+            shader.uvs.set(0.5, 0.5, 1.0, 1.0);
+        }
+
+        if (Math.random() < 0.005) {
+            s.material.mainPass.removeShader(shader);
+            s.material.mainPass.addShader(new OldBillboardShader());
+        }
 
         // trace(ax, ay, az, angle, e, q);
 
